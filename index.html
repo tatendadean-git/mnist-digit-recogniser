@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Digit Recognition</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; }
+      .card { max-width: 460px; margin: 0 auto; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+      canvas { border: 2px solid #4b5563; background: black; display: block; margin: 0 auto; cursor: crosshair; }
+      .controls { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
+      button { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; }
+      button.primary { background: #2563eb; color: white; }
+      button.secondary { background: #e5e7eb; color: #111827; }
+      #result { text-align: center; margin-top: 12px; font-size: 18px; font-weight: bold; }
+      #confidence { text-align: center; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2 style="text-align:center; margin-top:0;">Draw a digit (0-9)</h2>
+      <canvas id="canvas" width="280" height="280"></canvas>
+      <div class="controls">
+        <button class="primary" id="predict">Predict</button>
+        <button class="secondary" id="clear">Clear</button>
+      </div>
+      <div id="result">Prediction: -</div>
+      <div id="confidence">Confidence: -</div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const result = document.getElementById('result');
+      const confidence = document.getElementById('confidence');
+      const gridSize = 28;
+      const scale = canvas.width / gridSize;
+      let drawing = false;
+      let prevX = 0;
+      let prevY = 0;
+      let grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+
+      function resizeCanvas() {
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 12;
+        ctx.strokeStyle = 'white';
+      }
+
+      function getCoordinates(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+        const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+        return { x, y };
+      }
+
+      function mark(x0, y0, x1, y1) {
+        const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+        for (let i = 0; i <= steps; i += 1) {
+          const t = steps === 0 ? 0 : i / steps;
+          const x = Math.round(x0 + (x1 - x0) * t);
+          const y = Math.round(y0 + (y1 - y0) * t);
+          const gx = Math.max(0, Math.min(27, Math.floor(x / scale)));
+          const gy = Math.max(0, Math.min(27, Math.floor(y / scale)));
+          grid[gy][gx] = 1.0;
+        }
+      }
+
+      canvas.addEventListener('pointerdown', (event) => {
+        drawing = true;
+        const pos = getCoordinates(event);
+        prevX = pos.x;
+        prevY = pos.y;
+        ctx.beginPath();
+        ctx.moveTo(prevX, prevY);
+        mark(prevX, prevY, prevX, prevY);
+      });
+
+      canvas.addEventListener('pointermove', (event) => {
+        if (!drawing) return;
+        const pos = getCoordinates(event);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        mark(prevX, prevY, pos.x, pos.y);
+        prevX = pos.x;
+        prevY = pos.y;
+      });
+
+      canvas.addEventListener('pointerup', () => {
+        drawing = false;
+      });
+
+      document.getElementById('clear').addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+        result.textContent = 'Prediction: -';
+        confidence.textContent = 'Confidence: -';
+      });
+
+      document.getElementById('predict').addEventListener('click', async () => {
+        const hasDrawn = grid.some(row => row.some(value => value > 0));
+        if (!hasDrawn) {
+          result.textContent = 'Prediction: Please draw a digit';
+          confidence.textContent = 'Confidence: -';
+          return;
+        }
+
+        const response = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ grid })
+        });
+
+        const data = await response.json();
+        result.textContent = `Prediction: ${data.prediction}`;
+        confidence.textContent = `Confidence: ${data.confidence}%`;
+      });
+
+      resizeCanvas();
+    </script>
+  </body>
+</html>
