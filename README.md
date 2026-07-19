@@ -27,7 +27,7 @@ A handwritten digit recognition web app trained on the MNIST dataset. Draw any d
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/mnist-digit-recognizer.git
+git clone https://github.com/tatendadean-git/mnist-digit-recogniser
 cd mnist-digit-recognizer
 
 python3 -m venv venv
