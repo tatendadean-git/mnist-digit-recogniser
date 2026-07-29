@@ -1,6 +1,6 @@
 # MNIST Digit Recognizer
 
-A handwritten digit recognition web app trained on the MNIST dataset. Draw any digit (0 to 9) on the browser canvas and the model predicts it in real time.
+A handwritten digit recognition web app trained on the MNIST dataset. Draw any digit (0 too 9) on the browser canvas and the model predicts it in real time.
 
 ## How It Works
 
